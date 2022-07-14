@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"strings"
 
 	ldap "github.com/go-ldap/ldap/v3"
 )
@@ -71,7 +72,24 @@ func (c *Conn) Bind(upn, password string) (bool, error) {
 	if err != nil {
 		if e, ok := err.(*ldap.Error); ok {
 			if e.ResultCode == ldap.LDAPResultInvalidCredentials {
-				return false, nil
+				var msg string
+				s := err.Error()
+				if strings.Contains(s, "52e") {
+					msg = "账号或密码不正确"
+				} else if strings.Contains(s, "773") {
+					msg = "该账号必须修改密码后才能使用"
+				} else if strings.Contains(s, "775") {
+					msg = "该账号已锁定, 请联系管理员解锁!"
+				} else if strings.Contains(s, "532") {
+					msg = "密码已过有效期,请联系管理员重置!"
+				} else if strings.Contains(s, "533") {
+					msg = "该账号已禁用,请联系管理员!"
+				} else if strings.Contains(s, "701") {
+					msg = "该账号已过期,请联系管理员!"
+				} else {
+					msg = s
+				}
+				return false, errors.New(msg)
 			}
 		}
 		return false, fmt.Errorf("Bind error (%s): %w", upn, err)
