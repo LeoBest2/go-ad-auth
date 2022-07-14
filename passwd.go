@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	ldap "github.com/go-ldap/ldap/v3"
 	"golang.org/x/text/encoding/unicode"
@@ -73,7 +74,18 @@ func UpdatePassword(config *Config, username, oldPasswd, newPasswd string) error
 
 	err = conn.Conn.Modify(req)
 	if err != nil {
-		return fmt.Errorf("Password error: Unable to modify password: %w", err)
+		var msg string
+		s := err.Error()
+		if strings.Contains(s, "0000052D") {
+			msg = "新密码不符合策略要求!"
+		} else if strings.Contains(s, "00000056") {
+			msg = "用户名或密码不正确!"
+		} else if strings.Contains(s, "00000005") {
+			msg = "该账号不允许修改密码!"
+		} else {
+			msg = "Password error: Unable to modify password: " + s
+		}
+		return fmt.Errorf(msg)
 	}
 
 	return nil
